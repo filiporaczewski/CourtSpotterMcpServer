@@ -1,0 +1,49 @@
+name: Trigger auto deployment for courtspotter-mcp-app
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - '**'
+    - '.github/workflows/courtspotter-mcp-app-AutoDeployTrigger-4a373f27-4769-4308-9206-08f8a31ef012.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.COURTSPOTTERMCPAPP_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.COURTSPOTTERMCPAPP_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.COURTSPOTTERMCPAPP_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}
+          _dockerfilePathKey_: _dockerfilePath_
+          _targetLabelKey_: _targetLabel_
+          registryUrl: courtspottercontainers.azurecr.io
+          registryUsername: ${{ secrets.COURTSPOTTERMCPAPP_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.COURTSPOTTERMCPAPP_REGISTRY_PASSWORD }}
+          containerAppName: courtspotter-mcp-app
+          resourceGroup: padel-courts
+          imageToBuild: courtspottercontainers.azurecr.io/courtspotter-mcp-app:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
