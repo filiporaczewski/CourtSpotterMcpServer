@@ -1,10 +1,8 @@
 var builder = WebApplication.CreateBuilder(args);
 
-var app = builder.Build();
-
 builder.Services.AddHttpClient<HttpClient>("CourtSpotterClient", client =>
 {
-    client.BaseAddress = new Uri("api-courtspotter.azurewebsites.net/");
+    client.BaseAddress = new Uri("https://api-courtspotter.azurewebsites.net/");
 }).AddStandardResilienceHandler();
 
 builder.Services.AddMcpServer().WithHttpTransport(opt =>
@@ -22,6 +20,8 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader();
     });
 });
+
+var app = builder.Build();
 
 app.UseHttpsRedirection();
 app.MapMcp();
