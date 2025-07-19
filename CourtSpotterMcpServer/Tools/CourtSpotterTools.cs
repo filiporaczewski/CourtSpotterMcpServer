@@ -9,11 +9,11 @@ public class CourtSpotterTools
 {
     private readonly HttpClient _httpClient;
     private readonly TimeProvider _timeProvider;
-    private readonly Logger<CourtSpotterTools> _logger;
+    private readonly ILogger<CourtSpotterTools> _logger;
 
-    public CourtSpotterTools(HttpClient httpClient, TimeProvider timeProvider, Logger<CourtSpotterTools> logger)
+    public CourtSpotterTools(IHttpClientFactory httpClientFactory, TimeProvider timeProvider, ILogger<CourtSpotterTools> logger)
     {
-        _httpClient = httpClient;
+        _httpClient = httpClientFactory.CreateClient("CourtSpotterClient");
         _timeProvider = timeProvider;
         _logger = logger;
     }

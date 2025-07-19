@@ -1,6 +1,9 @@
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHttpClient<HttpClient>("CourtSpotterClient", client =>
+builder.Services.AddLogging();
+builder.Services.AddSingleton(TimeProvider.System);
+
+builder.Services.AddHttpClient("CourtSpotterClient", client =>
 {
     client.BaseAddress = new Uri("https://api-courtspotter.azurewebsites.net/");
 }).AddStandardResilienceHandler();
