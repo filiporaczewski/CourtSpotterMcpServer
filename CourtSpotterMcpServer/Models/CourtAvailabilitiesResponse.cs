@@ -1,4 +1,6 @@
-﻿namespace CourtSpotterMcpServer.Models;
+﻿using System.Text.Json.Serialization;
+
+namespace CourtSpotterMcpServer.Models;
 
 public class CourtAvailabilitiesResponse
 {
@@ -14,23 +16,33 @@ public enum CourtType
 
 public class CourtAvailability
 {
-    public string Id { get; set; }
+    [JsonPropertyName("id")]
+    public string AvailabilityId { get; set; }
 
-    public string ClubId { get; set; }
+    [JsonPropertyName("clubId")]
+    public string PadelClubId { get; set; }
 
-    public string ClubName { get; set; }
-
+    [JsonPropertyName("clubName")]
+    public string PadelClubName { get; set; }
+    
+    [JsonPropertyName("courtName")]
     public string CourtName { get; set; }
     
-    public DateTime DateTime { get; set; }
-    
+    [JsonPropertyName("dateTime")]
+    public DateTime AvailabilityStartTime { get; set; }
+   
+    [JsonPropertyName("price")]
     public decimal Price { get; set; }
 
+    [JsonPropertyName("bookingUrl")]
     public string BookingUrl { get; set; }
     
-    public string Provider { get; set; }
+    [JsonPropertyName("provider")]
+    public string BookingPlatform { get; set; }
     
+    [JsonPropertyName("durationInMinutes")]
     public int DurationInMinutes { get; set; }
     
+    [JsonPropertyName("courtType")]
     public CourtType CourtType { get; set; } = CourtType.Indoor;
 }
