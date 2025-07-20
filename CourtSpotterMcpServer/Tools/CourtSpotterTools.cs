@@ -27,7 +27,7 @@ public class CourtSpotterTools
         };
     }
     
-    [McpServerTool, Description("Get court availabilities for a specific date range. Returns a list of available court slots with details including club name, court type, price, duration, and booking URL. Useful for finding available padel courts.")]
+    [McpServerTool, Description("Get court availabilities for a specific date range. Returns a list of available court slots with details including club name, court type, price, duration, and booking URL. Available court types are indoor (0) and outdoor (1). The start time of each availability is converted to local (polish) time zone. Useful for finding available padel courts.")]
     public async Task<string> GetCourtAvailabilities([Description("Start date in YYYY-MM-DD format")] string startDate, [Description("End date in YYYY-MM-DD format")] string endDate)
     {
         if (!DateTime.TryParse(startDate, out var parsedStartDate) || !DateTime.TryParse(endDate, out var parsedEndDate))
@@ -78,9 +78,9 @@ public class CourtSpotterTools
                 }, _jsonOptions);
             }
             
-            var availabilities = availabilitiesResponse.CourtAvailabilities.Select(a => new CourtAvailability
+            var availabilities = availabilitiesResponse.CourtAvailabilities.Select(a => new CourtAvailabilityDto
             {
-                AvailabilityStartTime = TimeZoneInfo.ConvertTimeFromUtc(a.AvailabilityStartTime, _timeProvider.LocalTimeZone),
+                AvailabilityStartTimeAtLocalTimeZone = TimeZoneInfo.ConvertTimeFromUtc(a.AvailabilityStartTime, _timeProvider.LocalTimeZone),
                 DurationInMinutes = a.DurationInMinutes,
                 AvailabilityId = a.AvailabilityId,
                 BookingUrl = a.BookingUrl,
