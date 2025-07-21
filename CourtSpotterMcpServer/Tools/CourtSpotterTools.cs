@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Text.Json;
+using System.Text;
 using CourtSpotterMcpServer.Models;
 using ModelContextProtocol.Server;
 
@@ -13,6 +14,10 @@ public class CourtSpotterTools
     private readonly ILogger<CourtSpotterTools> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
     private const int DaysAhead = 14;
+    
+    private const string GetCourtAvailabilitiesDescription = "Get court availabilities for a specific date range with optional filtering. Returns a list of available court slots with details including club name, court type, price, duration, and booking URL. Available court types are indoor (0) and outdoor (1). Available durations are 60, 90, and 120 minutes. The start time of each availability is converted to local (polish) time zone. Useful for finding available padel courts.";
+    
+    private const string GetPadelClubsDescription = "Get information about all available padel clubs. Returns a list of clubs with their IDs, names, and booking providers. Use club IDs from this method to filter court availabilities by specific clubs.";
 
     public CourtSpotterTools(IHttpClientFactory httpClientFactory, TimeProvider timeProvider, ILogger<CourtSpotterTools> logger)
     {
@@ -27,8 +32,42 @@ public class CourtSpotterTools
         };
     }
     
-    [McpServerTool, Description("Get court availabilities for a specific date range. Returns a list of available court slots with details including club name, court type, price, duration, and booking URL. Available court types are indoor (0) and outdoor (1). The start time of each availability is converted to local (polish) time zone. Useful for finding available padel courts.")]
-    public async Task<string> GetCourtAvailabilities([Description("Start date in YYYY-MM-DD format")] string startDate, [Description("End date in YYYY-MM-DD format")] string endDate)
+    [McpServerTool, Description(GetPadelClubsDescription)]
+    public async Task<string> GetPadelClubs()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync("api/padel-clubs");
+            response.EnsureSuccessStatusCode();
+            var clubsResponse = await response.Content.ReadFromJsonAsync<PadelClubsResponse>();
+            
+            if (clubsResponse == null)
+            {
+                _logger.LogWarning("Failed to parse response from padel-clubs endpoint");
+                return JsonSerializer.Serialize(new { Success = false, ErrorMessage = "Failed to parse clubs response" }, _jsonOptions);
+            }
+            
+            return JsonSerializer.Serialize(new { Success = true, Clubs = clubsResponse.Clubs }, _jsonOptions);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error fetching padel clubs");
+            return JsonSerializer.Serialize(new { Success = false, ErrorMessage = "Network error: Unable to connect to the padel clubs service" }, _jsonOptions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error fetching padel clubs");
+            return JsonSerializer.Serialize(new { Success = false, ErrorMessage = "An unexpected error occurred while fetching padel clubs" }, _jsonOptions);
+        }
+    }
+    
+    [McpServerTool, Description(GetCourtAvailabilitiesDescription)]
+    public async Task<string> GetCourtAvailabilities(
+        [Description("Start date in YYYY-MM-DD format")] string startDate, 
+        [Description("End date in YYYY-MM-DD format")] string endDate,
+        [Description("Optional: Filter by court duration in minutes. Valid values: 60, 90, 120")] int[]? durations = null,
+        [Description("Optional: Filter by specific club IDs. Use GetPadelClubs to get available club IDs")] string[]? clubIds = null,
+        [Description("Optional: Filter by court type. 0 for Indoor, 1 for Outdoor")] int? courtType = null)
     {
         if (!DateTime.TryParse(startDate, out var parsedStartDate) || !DateTime.TryParse(endDate, out var parsedEndDate))
         {
@@ -63,7 +102,36 @@ public class CourtSpotterTools
 
         try
         {
-            var availabilitiesSearchResponse = await _httpClient.GetAsync($"api/court-availabilities?startDate={start:o}&endDate={end:o}");
+            var queryBuilder = new StringBuilder($"api/court-availabilities?startDate={start:o}&endDate={end:o}");
+            
+            if (durations != null && durations.Length > 0)
+            {
+                var validDurations = durations.Where(d => d == 60 || d == 90 || d == 120).ToArray();
+                if (validDurations.Length > 0)
+                {
+                    foreach (var duration in validDurations)
+                    {
+                        queryBuilder.Append($"&durations={duration}");
+                    }
+                }
+            }
+            
+            if (clubIds != null && clubIds.Length > 0)
+            {
+                foreach (var clubId in clubIds)
+                {
+                    queryBuilder.Append($"&clubIds={Uri.EscapeDataString(clubId)}");
+                }
+            }
+            
+            if (courtType.HasValue && (courtType.Value == 0 || courtType.Value == 1))
+            {
+                queryBuilder.Append($"&courtType={courtType.Value}");
+            }
+            
+            _logger.LogInformation("Fetching court availabilities with query: {Query}", queryBuilder.ToString());
+            
+            var availabilitiesSearchResponse = await _httpClient.GetAsync(queryBuilder.ToString());
             availabilitiesSearchResponse.EnsureSuccessStatusCode();
             var availabilitiesResponse = await availabilitiesSearchResponse.Content.ReadFromJsonAsync<CourtAvailabilitiesResponse>();
         
