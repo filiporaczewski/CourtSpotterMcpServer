@@ -18,7 +18,7 @@ public class CourtSpotterTools
     private const string GetCourtAvailabilitiesDescription = """
                                                              Get court availabilities for a specific date range with optional filtering. Returns a list of available court slots with details including 
                                                              club name, court type, price, duration, and booking URL. Available court types are indoor (0) and outdoor (1). Available durations are 60, 90, 
-                                                             and 120 minutes. The start time of each availability is converted to the club's local timezone. Useful for finding available padel courts.
+                                                             and 120 minutes. The start time of each availability is converted to the club's local timezone. You can filter by specific club names.
                                                              """;
     
     public CourtSpotterTools(IHttpClientFactory httpClientFactory, TimeProvider timeProvider, ILogger<CourtSpotterTools> logger)
@@ -39,7 +39,7 @@ public class CourtSpotterTools
         [Description("Start date in YYYY-MM-DD format")] string startDate, 
         [Description("End date in YYYY-MM-DD format")] string endDate,
         [Description("Optional: Filter by court duration in minutes. Valid values: 60, 90, 120")] int[]? durations = null,
-        [Description("Optional: Filter by specific club IDs")] string[]? clubIds = null,
+        [Description("Optional: Filter by specific club names (e.g., 'Padlovnia', 'Warsaw Padel Club')")] string[]? clubNames = null,
         [Description("Optional: Filter by court type. 0 for Indoor, 1 for Outdoor")] int? courtType = null)
     {
         if (!DateTime.TryParse(startDate, out var parsedStartDate) || !DateTime.TryParse(endDate, out var parsedEndDate))
@@ -92,6 +92,12 @@ public class CourtSpotterTools
             
             var clubTimezones = clubsResponse.Clubs.ToDictionary(c => c.ClubId, c => c.TimeZone);
             
+            // Create club name to ID mapping for filtering
+            var clubNameToId = clubsResponse.Clubs.ToDictionary(
+                c => c.Name,
+                c => c.ClubId,
+                StringComparer.OrdinalIgnoreCase);
+            
             var queryBuilder = new StringBuilder($"api/court-availabilities?startDate={start:o}&endDate={end:o}");
             
             if (durations != null && durations.Length > 0)
@@ -106,11 +112,28 @@ public class CourtSpotterTools
                 }
             }
             
-            if (clubIds != null && clubIds.Length > 0)
+            if (clubNames != null && clubNames.Length > 0)
             {
-                foreach (var clubId in clubIds)
+                var matchedClubIds = clubNames
+                    .Where(name => clubNameToId.ContainsKey(name))
+                    .Select(name => clubNameToId[name])
+                    .ToArray();
+                
+                if (matchedClubIds.Length > 0)
                 {
-                    queryBuilder.Append($"&clubIds={Uri.EscapeDataString(clubId)}");
+                    foreach (var clubId in matchedClubIds)
+                    {
+                        queryBuilder.Append($"&clubIds={Uri.EscapeDataString(clubId)}");
+                    }
+                }
+                
+                // Log if some club names were not found
+                var unmatchedNames = clubNames.Where(name => !clubNameToId.ContainsKey(name)).ToArray();
+                if (unmatchedNames.Length > 0)
+                {
+                    _logger.LogWarning("Club names not found: {UnmatchedNames}. Available clubs: {AvailableClubs}", 
+                        string.Join(", ", unmatchedNames), 
+                        string.Join(", ", clubNameToId.Keys));
                 }
             }
             

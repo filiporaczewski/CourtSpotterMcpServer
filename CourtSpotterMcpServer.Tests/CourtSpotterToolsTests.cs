@@ -153,7 +153,7 @@ public class CourtSpotterToolsTests
             startDate: "2024-01-15", 
             endDate: "2024-01-16", 
             durations: new[] { 90 }, 
-            clubIds: new[] { "club1" }, 
+            clubNames: new[] { "Test Club" }, 
             courtType: 0);
 
         result.ShouldNotBeNull();
@@ -289,5 +289,114 @@ public class CourtSpotterToolsTests
         // The local times should be different due to different timezones
         warsawAvailability.AvailabilityStartTimeAtLocalTimeZone.Hour.ShouldBe(15); // UTC+1 in January
         londonAvailability.AvailabilityStartTimeAtLocalTimeZone.Hour.ShouldBe(14); // UTC+0 in January
+    }
+
+    [Fact]
+    public async Task GetCourtAvailabilities_WithClubNameFiltering_MapsNamesToIds()
+    {
+        var clubsResponse = new PadelClubsResponse
+        {
+            TotalCount = 2,
+            Clubs = new List<PadelClubDto>
+            {
+                new() { ClubId = "club1", Name = "Warsaw Club", Provider = "Provider1", TimeZone = "Europe/Warsaw" },
+                new() { ClubId = "club2", Name = "London Club", Provider = "Provider2", TimeZone = "Europe/London" }
+            }
+        };
+
+        var availabilitiesResponse = new CourtAvailabilitiesResponse
+        {
+            CourtAvailabilities = new List<CourtAvailability>()
+        };
+
+        var clubsJson = JsonSerializer.Serialize(clubsResponse, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        var availabilitiesJson = JsonSerializer.Serialize(availabilitiesResponse, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+        _httpMessageHandlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req => req.RequestUri!.ToString().Contains("api/padel-clubs")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(clubsJson, Encoding.UTF8, "application/json")
+            });
+
+        _httpMessageHandlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req => 
+                    req.RequestUri!.ToString().Contains("api/court-availabilities") &&
+                    req.RequestUri.ToString().Contains("clubIds=club1") &&
+                    req.RequestUri.ToString().Contains("clubIds=club2")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(availabilitiesJson, Encoding.UTF8, "application/json")
+            });
+
+        var result = await _courtSpotterTools.GetCourtAvailabilities(
+            startDate: "2024-01-15", 
+            endDate: "2024-01-16", 
+            clubNames: new[] { "Warsaw Club", "London Club" });
+
+        result.ShouldNotBeNull();
+        var resultObj = JsonSerializer.Deserialize<AvailabilitiesSearchResult>(result, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        
+        resultObj!.Success.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task GetCourtAvailabilities_WithNonExistentClubName_IgnoresUnmatchedNames()
+    {
+        var clubsResponse = new PadelClubsResponse
+        {
+            TotalCount = 1,
+            Clubs = new List<PadelClubDto>
+            {
+                new() { ClubId = "club1", Name = "Warsaw Club", Provider = "Provider1", TimeZone = "Europe/Warsaw" }
+            }
+        };
+
+        var availabilitiesResponse = new CourtAvailabilitiesResponse
+        {
+            CourtAvailabilities = new List<CourtAvailability>()
+        };
+
+        var clubsJson = JsonSerializer.Serialize(clubsResponse, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        var availabilitiesJson = JsonSerializer.Serialize(availabilitiesResponse, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+        _httpMessageHandlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req => req.RequestUri!.ToString().Contains("api/padel-clubs")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(clubsJson, Encoding.UTF8, "application/json")
+            });
+
+        _httpMessageHandlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req => 
+                    req.RequestUri!.ToString().Contains("api/court-availabilities") &&
+                    req.RequestUri.ToString().Contains("clubIds=club1") &&
+                    !req.RequestUri.ToString().Contains("NonExistentClub")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(availabilitiesJson, Encoding.UTF8, "application/json")
+            });
+
+        var result = await _courtSpotterTools.GetCourtAvailabilities(
+            startDate: "2024-01-15", 
+            endDate: "2024-01-16", 
+            clubNames: new[] { "Warsaw Club", "NonExistent Club" });
+
+        result.ShouldNotBeNull();
+        var resultObj = JsonSerializer.Deserialize<AvailabilitiesSearchResult>(result, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        
+        resultObj!.Success.ShouldBeTrue();
     }
 }
