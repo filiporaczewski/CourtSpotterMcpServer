@@ -12,4 +12,5 @@ public class PadelClubDto
     public string Name { get; set; }
     public string Provider { get; set; }
     public int? PagesCount { get; set; }
+    public string TimeZone { get; set; }
 }

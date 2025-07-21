@@ -18,14 +18,9 @@ public class CourtSpotterTools
     private const string GetCourtAvailabilitiesDescription = """
                                                              Get court availabilities for a specific date range with optional filtering. Returns a list of available court slots with details including 
                                                              club name, court type, price, duration, and booking URL. Available court types are indoor (0) and outdoor (1). Available durations are 60, 90, 
-                                                             and 120 minutes. The start time of each availability is converted to local (polish) time zone. Useful for finding available padel courts.
+                                                             and 120 minutes. The start time of each availability is converted to the club's local timezone. Useful for finding available padel courts.
                                                              """;
     
-    private const string GetPadelClubsDescription = """
-                                                    Get information about all available padel clubs. Returns a list of clubs with their IDs, names, and booking providers. 
-                                                    Use club IDs from this method to filter court availabilities by specific clubs.
-                                                    """;
-
     public CourtSpotterTools(IHttpClientFactory httpClientFactory, TimeProvider timeProvider, ILogger<CourtSpotterTools> logger)
     {
         _httpClient = httpClientFactory.CreateClient("CourtSpotterClient");
@@ -39,41 +34,12 @@ public class CourtSpotterTools
         };
     }
     
-    [McpServerTool, Description(GetPadelClubsDescription)]
-    public async Task<string> GetPadelClubs()
-    {
-        try
-        {
-            var response = await _httpClient.GetAsync("api/padel-clubs");
-            response.EnsureSuccessStatusCode();
-            var clubsResponse = await response.Content.ReadFromJsonAsync<PadelClubsResponse>();
-            
-            if (clubsResponse == null)
-            {
-                _logger.LogWarning("Failed to parse response from padel-clubs endpoint");
-                return JsonSerializer.Serialize(new { Success = false, ErrorMessage = "Failed to parse clubs response" }, _jsonOptions);
-            }
-            
-            return JsonSerializer.Serialize(new { Success = true, Clubs = clubsResponse.Clubs }, _jsonOptions);
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "Network error fetching padel clubs");
-            return JsonSerializer.Serialize(new { Success = false, ErrorMessage = "Network error: Unable to connect to the padel clubs service" }, _jsonOptions);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unexpected error fetching padel clubs");
-            return JsonSerializer.Serialize(new { Success = false, ErrorMessage = "An unexpected error occurred while fetching padel clubs" }, _jsonOptions);
-        }
-    }
-    
     [McpServerTool, Description(GetCourtAvailabilitiesDescription)]
     public async Task<string> GetCourtAvailabilities(
         [Description("Start date in YYYY-MM-DD format")] string startDate, 
         [Description("End date in YYYY-MM-DD format")] string endDate,
         [Description("Optional: Filter by court duration in minutes. Valid values: 60, 90, 120")] int[]? durations = null,
-        [Description("Optional: Filter by specific club IDs. Use GetPadelClubs to get available club IDs")] string[]? clubIds = null,
+        [Description("Optional: Filter by specific club IDs")] string[]? clubIds = null,
         [Description("Optional: Filter by court type. 0 for Indoor, 1 for Outdoor")] int? courtType = null)
     {
         if (!DateTime.TryParse(startDate, out var parsedStartDate) || !DateTime.TryParse(endDate, out var parsedEndDate))
@@ -109,6 +75,23 @@ public class CourtSpotterTools
 
         try
         {
+            var clubsResponseMessage = await _httpClient.GetAsync("api/padel-clubs");
+            clubsResponseMessage.EnsureSuccessStatusCode();
+            var clubsResponse = await clubsResponseMessage.Content.ReadFromJsonAsync<PadelClubsResponse>();
+            
+            if (clubsResponse == null)
+            {
+                _logger.LogWarning("Failed to parse response from padel-clubs endpoint");
+                return JsonSerializer.Serialize(new AvailabilitiesSearchResult
+                {
+                    CourtAvailabilities = [],
+                    ErrorMessage = "Failed to retrieve club information for timezone conversion",
+                    Success = false
+                }, _jsonOptions);
+            }
+            
+            var clubTimezones = clubsResponse.Clubs.ToDictionary(c => c.ClubId, c => c.TimeZone);
+            
             var queryBuilder = new StringBuilder($"api/court-availabilities?startDate={start:o}&endDate={end:o}");
             
             if (durations != null && durations.Length > 0)
@@ -148,23 +131,42 @@ public class CourtSpotterTools
                 return JsonSerializer.Serialize(new AvailabilitiesSearchResult
                 {
                     CourtAvailabilities = [],
-                    ErrorMessage = $"Failed to parse response from court-availabilities endpoint",
+                    ErrorMessage = "Failed to parse response from court-availabilities endpoint",
                     Success = false
                 }, _jsonOptions);
             }
             
-            var availabilities = availabilitiesResponse.CourtAvailabilities.Select(a => new CourtAvailabilityDto
+            var availabilities = availabilitiesResponse.CourtAvailabilities.Select(a => 
             {
-                AvailabilityStartTimeAtLocalTimeZone = TimeZoneInfo.ConvertTimeFromUtc(a.AvailabilityStartTime, _timeProvider.LocalTimeZone),
-                DurationInMinutes = a.DurationInMinutes,
-                AvailabilityId = a.AvailabilityId,
-                BookingUrl = a.BookingUrl,
-                PadelClubName = a.PadelClubName,
-                CourtName = a.CourtName,
-                CourtType = a.CourtType,
-                Price = a.Price,
-                PadelClubId = a.PadelClubId,
-                BookingPlatform = a.BookingPlatform
+                // Use club-specific timezone if available, fallback to server timezone
+                TimeZoneInfo clubTimeZone;
+                try
+                {
+                    var timeZoneId = clubTimezones.GetValueOrDefault(a.PadelClubId);
+                    clubTimeZone = !string.IsNullOrEmpty(timeZoneId) 
+                        ? TimeZoneInfo.FindSystemTimeZoneById(timeZoneId)
+                        : _timeProvider.LocalTimeZone;
+                }
+                catch (TimeZoneNotFoundException)
+                {
+                    _logger.LogWarning("Invalid timezone {TimeZone} for club {ClubId}, using server timezone", 
+                        clubTimezones.GetValueOrDefault(a.PadelClubId), a.PadelClubId);
+                    clubTimeZone = _timeProvider.LocalTimeZone;
+                }
+                
+                return new CourtAvailabilityDto
+                {
+                    AvailabilityStartTimeAtLocalTimeZone = TimeZoneInfo.ConvertTimeFromUtc(a.AvailabilityStartTime, clubTimeZone),
+                    DurationInMinutes = a.DurationInMinutes,
+                    AvailabilityId = a.AvailabilityId,
+                    BookingUrl = a.BookingUrl,
+                    PadelClubName = a.PadelClubName,
+                    CourtName = a.CourtName,
+                    CourtType = a.CourtType,
+                    Price = a.Price,
+                    PadelClubId = a.PadelClubId,
+                    BookingPlatform = a.BookingPlatform
+                };
             }).ToList();
             
             var result = new AvailabilitiesSearchResult

@@ -1,6 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# 
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CourtSpotterMcpServer", "CourtSpotterMcpServer\CourtSpotterMcpServer.csproj", "{640EDF2C-7E94-4FFB-805D-1DDA909B5A97}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CourtSpotterMcpServer.Tests", "CourtSpotterMcpServer.Tests\CourtSpotterMcpServer.Tests.csproj", "{F98724DD-5A17-4C17-BC7F-BB9EFA247FA5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +15,9 @@ Global
 		{640EDF2C-7E94-4FFB-805D-1DDA909B5A97}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{640EDF2C-7E94-4FFB-805D-1DDA909B5A97}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{640EDF2C-7E94-4FFB-805D-1DDA909B5A97}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F98724DD-5A17-4C17-BC7F-BB9EFA247FA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F98724DD-5A17-4C17-BC7F-BB9EFA247FA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F98724DD-5A17-4C17-BC7F-BB9EFA247FA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F98724DD-5A17-4C17-BC7F-BB9EFA247FA5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
