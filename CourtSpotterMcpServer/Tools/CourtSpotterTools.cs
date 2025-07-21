@@ -15,9 +15,16 @@ public class CourtSpotterTools
     private readonly JsonSerializerOptions _jsonOptions;
     private const int DaysAhead = 14;
     
-    private const string GetCourtAvailabilitiesDescription = "Get court availabilities for a specific date range with optional filtering. Returns a list of available court slots with details including club name, court type, price, duration, and booking URL. Available court types are indoor (0) and outdoor (1). Available durations are 60, 90, and 120 minutes. The start time of each availability is converted to local (polish) time zone. Useful for finding available padel courts.";
+    private const string GetCourtAvailabilitiesDescription = """
+                                                             Get court availabilities for a specific date range with optional filtering. Returns a list of available court slots with details including 
+                                                             club name, court type, price, duration, and booking URL. Available court types are indoor (0) and outdoor (1). Available durations are 60, 90, 
+                                                             and 120 minutes. The start time of each availability is converted to local (polish) time zone. Useful for finding available padel courts.
+                                                             """;
     
-    private const string GetPadelClubsDescription = "Get information about all available padel clubs. Returns a list of clubs with their IDs, names, and booking providers. Use club IDs from this method to filter court availabilities by specific clubs.";
+    private const string GetPadelClubsDescription = """
+                                                    Get information about all available padel clubs. Returns a list of clubs with their IDs, names, and booking providers. 
+                                                    Use club IDs from this method to filter court availabilities by specific clubs.
+                                                    """;
 
     public CourtSpotterTools(IHttpClientFactory httpClientFactory, TimeProvider timeProvider, ILogger<CourtSpotterTools> logger)
     {
