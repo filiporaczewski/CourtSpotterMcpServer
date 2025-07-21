@@ -90,7 +90,7 @@ public class CourtSpotterTools
                 }, _jsonOptions);
             }
             
-            var clubTimezones = clubsResponse.Clubs.ToDictionary(c => c.ClubId, c => c.TimeZone);
+            var clubTimezones = clubsResponse.Clubs.ToDictionary(c => c.Name, c => c.TimeZone);
             
             // Create club name to ID mapping for filtering
             var clubNameToId = clubsResponse.Clubs.ToDictionary(
@@ -165,15 +165,15 @@ public class CourtSpotterTools
                 TimeZoneInfo clubTimeZone;
                 try
                 {
-                    var timeZoneId = clubTimezones.GetValueOrDefault(a.PadelClubId);
+                    var timeZoneId = clubTimezones.GetValueOrDefault(a.PadelClubName);
                     clubTimeZone = !string.IsNullOrEmpty(timeZoneId) 
                         ? TimeZoneInfo.FindSystemTimeZoneById(timeZoneId)
                         : _timeProvider.LocalTimeZone;
                 }
                 catch (TimeZoneNotFoundException)
                 {
-                    _logger.LogWarning("Invalid timezone {TimeZone} for club {ClubId}, using server timezone", 
-                        clubTimezones.GetValueOrDefault(a.PadelClubId), a.PadelClubId);
+                    _logger.LogWarning("Invalid timezone {TimeZone} for club {ClubName}, using server timezone", 
+                        clubTimezones.GetValueOrDefault(a.PadelClubName), a.PadelClubName);
                     clubTimeZone = _timeProvider.LocalTimeZone;
                 }
                 
@@ -187,7 +187,6 @@ public class CourtSpotterTools
                     CourtName = a.CourtName,
                     CourtType = a.CourtType,
                     Price = a.Price,
-                    PadelClubId = a.PadelClubId,
                     BookingPlatform = a.BookingPlatform
                 };
             }).ToList();
@@ -195,8 +194,7 @@ public class CourtSpotterTools
             var result = new AvailabilitiesSearchResult
             {
                 Success = true,
-                CourtAvailabilities = availabilities,
-                LocalTimeZone = _timeProvider.LocalTimeZone.Id
+                CourtAvailabilities = availabilities
             };
             
             return JsonSerializer.Serialize(result, _jsonOptions);

@@ -19,9 +19,6 @@ public class CourtAvailability
     [JsonPropertyName("id")]
     public string AvailabilityId { get; set; }
 
-    [JsonPropertyName("clubId")]
-    public string PadelClubId { get; set; }
-
     [JsonPropertyName("clubName")]
     public string PadelClubName { get; set; }
     

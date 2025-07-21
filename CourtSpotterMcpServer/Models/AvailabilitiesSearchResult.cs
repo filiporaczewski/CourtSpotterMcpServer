@@ -5,8 +5,6 @@ public class AvailabilitiesSearchResult
     public bool Success { get; set; }
 
     public string? ErrorMessage { get; set; }
-
-    public string LocalTimeZone { get; set; }
     
     public List<CourtAvailabilityDto> CourtAvailabilities { get; set; } = [];
 }
@@ -14,8 +12,6 @@ public class AvailabilitiesSearchResult
 public class CourtAvailabilityDto
 {
     public string AvailabilityId { get; set; }
-    
-    public string PadelClubId { get; set; }
     
     public string PadelClubName { get; set; }
     

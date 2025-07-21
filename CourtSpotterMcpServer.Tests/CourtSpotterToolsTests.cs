@@ -63,7 +63,6 @@ public class CourtSpotterToolsTests
                     CourtType = CourtType.Indoor,
                     Price = 100.0m,
                     BookingUrl = "https://test.com/book",
-                    PadelClubId = "club1",
                     BookingPlatform = "TestPlatform"
                 }
             }
@@ -101,7 +100,6 @@ public class CourtSpotterToolsTests
         resultObj.CourtAvailabilities.ShouldNotBeNull();
         resultObj.CourtAvailabilities.Count.ShouldBe(1);
         resultObj.CourtAvailabilities[0].PadelClubName.ShouldBe("Test Club");
-        resultObj.CourtAvailabilities[0].PadelClubId.ShouldBe("club1");
         // Clubs are not returned in response, only used internally for timezone conversion
     }
 
@@ -232,7 +230,6 @@ public class CourtSpotterToolsTests
                     CourtType = CourtType.Indoor,
                     Price = 100.0m,
                     BookingUrl = "https://test.com/book",
-                    PadelClubId = "club1",
                     BookingPlatform = "TestPlatform"
                 },
                 new()
@@ -245,7 +242,6 @@ public class CourtSpotterToolsTests
                     CourtType = CourtType.Indoor,
                     Price = 120.0m,
                     BookingUrl = "https://test2.com/book",
-                    PadelClubId = "club2",
                     BookingPlatform = "TestPlatform"
                 }
             }
@@ -283,8 +279,8 @@ public class CourtSpotterToolsTests
         resultObj.CourtAvailabilities.Count.ShouldBe(2);
         
         // Each availability should use the timezone from its corresponding club
-        var warsawAvailability = resultObj.CourtAvailabilities.First(a => a.PadelClubId == "club1");
-        var londonAvailability = resultObj.CourtAvailabilities.First(a => a.PadelClubId == "club2");
+        var warsawAvailability = resultObj.CourtAvailabilities.First(a => a.PadelClubName == "Warsaw Club");
+        var londonAvailability = resultObj.CourtAvailabilities.First(a => a.PadelClubName == "London Club");
         
         // The local times should be different due to different timezones
         warsawAvailability.AvailabilityStartTimeAtLocalTimeZone.Hour.ShouldBe(15); // UTC+1 in January
